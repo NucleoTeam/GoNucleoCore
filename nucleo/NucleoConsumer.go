@@ -2,6 +2,7 @@ package nucleohub
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/segmentio/kafka-go"
 )
@@ -39,6 +40,11 @@ func (c * NucleoConsumer) readThread(){
 			fmt.Println(err)
 			break
 		}
-		fmt.Printf("message at offset %d: %s = %s\n", m.Offset, string(m.Key), string(m.Value))
+		data := NewNucleoData()
+		err = json.Unmarshal([]byte(m.Value), &data)
+		if err != nil {
+			fmt.Println(err)
+		}
+		c.Hub.Execute(m.Topic, data)
 	}
 }

@@ -21,7 +21,7 @@ func main() {
 		time.Sleep(4 * time.Second)
 		hub.Add("new.taco.bell,taco.one.two", nucleohub.NewNucleoData())
 	}
-	//json.Unmarshal([]byte(popcorn), &res)
+	//
 	//nucleohub.NewStep("player.get.id");
 	//test.Execution.EndStep
 	/*b, err :=json.Marshal(res)

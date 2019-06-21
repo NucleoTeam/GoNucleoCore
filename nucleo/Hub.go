@@ -8,6 +8,7 @@ import (
 type NucleoHub struct {
 	Name string
 	Responders  map[string] func(data *NucleoData) *NucleoData
+	Roots map[uuid.UUID] func(data *NucleoData) *NucleoData
 	group string
 	Queue *NucleoList
 	producer map[string]*NucleoProducer
@@ -32,7 +33,7 @@ func NewHub(name string, group string, brokers []string) *NucleoHub{
 	return hub
 }
 
-func (hub * NucleoHub) Add(chains string, data *NucleoData){
+func (hub * NucleoHub) Add(chains string, data *NucleoData, function func(data *NucleoData) *NucleoData){
 	//
 	data.Origin = hub.Name
 	data.Link = 0
@@ -66,6 +67,14 @@ func (hub *NucleoHub) PollQueue(){
 	}
 }
 
-func (hub *NucleoHub) Execute(data *NucleoData){
+func (hub *NucleoHub) Execute(chain string, data *NucleoData){
+	if hub.Responders[chain] == nil {
+		return
+	}
+	if chain == "nucleo.client."+hub.Name {
+
+		return
+	}
+ 	hub.Responders[chain](data)
 
 }
