@@ -2,6 +2,13 @@ package nucleohub
 
 
 type MethodRegistration struct {
-	Name string
-	Run func(NucleoData);
+	Chain string
+	Function *func(*NucleoData);
+}
+
+func NewMethod(chain string, function *func(*NucleoData)) *MethodRegistration {
+	reg := new(MethodRegistration)
+	reg.Chain = chain
+	reg.Function = function
+	return reg
 }
