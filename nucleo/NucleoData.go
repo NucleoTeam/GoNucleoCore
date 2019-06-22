@@ -17,8 +17,10 @@ type NucleoData struct {
 func NewNucleoData() *NucleoData {
 	data := new(NucleoData);
 	step := NewStep("")
+	data.ChainBreak = NewChainStatus()
 	o, _ := uuid.NewRandom()
 	data.Root = o
+	data.Objects = map[string]interface{}{}
 	data.Execution = step
 	return data
 }
@@ -32,7 +34,24 @@ func (d * NucleoData) GetCurrentChain() string{
 	}
 	chainText := ""
 	for x:=0;x<=d.Link;x++ {
-		chainText+=d.ChainList[d.OnChain][x]
+		if chainText != "" {
+			chainText+="."+d.ChainList[d.OnChain][x]
+		} else {
+			chainText=d.ChainList[d.OnChain][x]
+		}
+
 	}
 	return chainText
+}
+func (d * NucleoData) Increment() int {
+	if d.Link+1 < len(d.ChainList[d.OnChain]) {
+		d.Link++
+		return 0
+	}
+	if d.OnChain+1 < len(d.ChainList) {
+		d.OnChain++
+		d.Link = 0
+		return 1
+	}
+	return -1
 }

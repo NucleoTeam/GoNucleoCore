@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/snappy"
+	"time"
 )
 
 type NucleoProducer struct {
@@ -15,24 +17,35 @@ type NucleoProducer struct {
 	Hub *NucleoHub
 	Queue *NucleoList
 }
-func newProducer(chain string, brokers []string, hub *NucleoHub) *NucleoProducer {
+func NewProducer(chain string, brokers []string, hub *NucleoHub) *NucleoProducer {
 	producer := new(NucleoProducer)
 	producer.Brokers = brokers
 	producer.Hub = hub
 	producer.Chain = chain
 	producer.Queue = newList()
-	producer.Writer = kafka.NewWriter(kafka.WriterConfig{
-		Brokers: producer.Brokers,
-		Topic: producer.Chain,
-		Balancer: &kafka.LeastBytes{},
-	})
 	// write
-	go producer.writeThread();
+	go producer.WriteThread();
 
 	return producer;
 }
 
-func (p * NucleoProducer) writeThread(){
+func (p * NucleoProducer) WriteThread(){
+	u, _ := uuid.NewRandom()
+	dialer := &kafka.Dialer{
+		Timeout:  10 * time.Second,
+		ClientID: p.Hub.Name+"-PRODUCER-"+u.String(),
+	}
+	p.Writer = kafka.NewWriter(kafka.WriterConfig{
+		Brokers: p.Brokers,
+		Dialer: dialer,
+		Topic: p.Chain,
+		Balancer: &kafka.LeastBytes{},
+		WriteTimeout: 10 * time.Millisecond,
+		BatchTimeout: 500 * time.Millisecond,
+		ReadTimeout: 500 * time.Millisecond,
+		CompressionCodec: snappy.NewCompressionCodec(),
+		Async: false,
+	})
 	for{
 		if p.Queue.Size>0 {
 			item := p.Queue.Pop()
@@ -54,5 +67,6 @@ func (p * NucleoProducer) writeThread(){
 				}
 			}
 		}
+		time.Sleep(1 * time.Millisecond)
 	}
 }

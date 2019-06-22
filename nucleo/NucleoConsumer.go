@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/segmentio/kafka-go"
+	"time"
 )
 
 type NucleoConsumer struct {
@@ -16,35 +17,35 @@ type NucleoConsumer struct {
 }
 
 func NewConsumer(chain string, group string, brokers []string, hub *NucleoHub) *NucleoConsumer {
+	fmt.Println("Registered chain: " + chain)
 	consumer := new(NucleoConsumer);
 	consumer.Brokers = brokers
 	consumer.GroupID = group
 	consumer.Hub = hub
 	consumer.Chain = chain
-	consumer.Reader = kafka.NewReader(kafka.ReaderConfig{
-		Brokers:   consumer.Brokers,
-		GroupID:   consumer.GroupID,
-		Topic:     consumer.Chain,
-		MinBytes:  1, // 1B
-		MaxBytes:  2e6, // 2MB
-		CommitInterval: 1000,
+	c, _ := kafka.NewConsumer(&kafka.ConfigMap{
+		"bootstrap.servers": "localhost",
+		"group.id":          "myGroup",
+		"auto.offset.reset": "earliest",
 	})
 	go consumer.readThread()
 
 	return consumer;
 }
 func (c * NucleoConsumer) readThread(){
-	for {
-		m, err := c.Reader.ReadMessage(context.Background())
-		if err != nil {
-			fmt.Println(err)
-			break
+		for {
+			m, err := c.Reader.FetchMessage(context.Background())
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+			data := NewNucleoData()
+			err = json.Unmarshal([]byte(m.Value), &data)
+			if err != nil {
+				fmt.Println(err)
+			}
+			if data.Objects == nil {
+				data.Objects = map[string]interface{}{}
+			}
+			c.Hub.Execute(m.Topic, data)
 		}
-		data := NewNucleoData()
-		err = json.Unmarshal([]byte(m.Value), &data)
-		if err != nil {
-			fmt.Println(err)
-		}
-		c.Hub.Execute(m.Topic, data)
-	}
 }

@@ -1,32 +1,28 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	nucleohub "nucleoCore/nucleo"
 	"time"
 )
 
 func main() {
-	//test := nucleohub.NewNucleoData()
-	//popcorn := "{\"root\":\"00000000-0000-0000-0000-000000000000\",\"steps\":null,\"chainList\":null,\"origin\":\"\",\"link\":0,\"execution\":{\"step\":\"\",\"start\":1561065550956201000,\"host\":\"Nathaniels-Mac-mini.local\",\"end\":1561065550956203000,\"total\":2000},\"onChain\":0,\"objects\":{\"test\":1},\"chainBreak\":null}"
-	//res := nucleohub.NucleoData{}
-	hub := nucleohub.NewHub("Go11","nucleoCore-Go", []string{"192.168.1.112:9092"})
-	hub.Register("new", func(data * nucleohub.NucleoData) *nucleohub.NucleoData{
-		fmt.Println("test")
-		data.Objects["test"] = ""
+	hub := nucleohub.NewHub("Go-Client","nucleoCore-Go", []string{"192.169.1.1:9092"})
+	hub.Register("pop", func(data * nucleohub.NucleoData) *nucleohub.NucleoData{
+		data.Objects["test"] = "wow"
 		return data;
 	})
-	hub.Add("new.taco.bell,taco.one.two", nucleohub.NewNucleoData())
+	hub.Register("pop.corn", func(data * nucleohub.NucleoData) *nucleohub.NucleoData{
+		data.Objects["Corn"] = "GOGOGO"
+		return data;
+	})
 	for{
-		time.Sleep(4 * time.Second)
-		hub.Add("new.taco.bell,taco.one.two", nucleohub.NewNucleoData())
+		fmt.Println("Created new request")
+		hub.Add("pop.corn", nucleohub.NewNucleoData(), func(data *nucleohub.NucleoData) {
+			d, _ := json.Marshal(data)
+			fmt.Println(string(d))
+		})
+		time.Sleep(10 * time.Second)
 	}
-	//
-	//nucleohub.NewStep("player.get.id");
-	//test.Execution.EndStep
-	/*b, err :=json.Marshal(res)
-	if err != nil {
-		fmt.Print("error")
-	}
- 	fmt.Println(string(b));*/
 }
