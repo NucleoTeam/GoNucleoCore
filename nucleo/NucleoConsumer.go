@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"time"
 )
 
 type NucleoConsumer struct {
 	Brokers []string
 	Chain string
 	GroupID string
-	Consumer *kafka.Consumer
 	Hub *NucleoHub
 }
 
@@ -20,30 +20,30 @@ func NewConsumer(chain string, group string, brokers []string, hub *NucleoHub) *
 	consumer.GroupID = group
 	consumer.Hub = hub
 	consumer.Chain = chain
-	c, _ := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": brokers[0],
-		"group.id":          consumer.GroupID,
-		"auto.offset.reset": "earliest",
-	})
-	consumer.Consumer = c
-	consumer.Consumer.Subscribe(chain, nil)
-
 	go consumer.readThread()
 
 	return consumer;
 }
-func (c * NucleoConsumer) readThread(){
-	for {
-		m, err := c.Consumer.ReadMessage(-1)
-		if err != nil {
-			fmt.Println(err)
-			break
+func (cHandle * NucleoConsumer) readThread(){
+	run := true
+	c, _ := kafka.NewConsumer(&kafka.ConfigMap{
+		"bootstrap.servers": cHandle.Brokers[0],
+		"group.id":          cHandle.GroupID,
+		"auto.offset.reset": "latest",
+		"session.timeout.ms":    6000,
+	})
+	c.SubscribeTopics([]string{cHandle.Chain}, nil)
+	for run == true {
+		data, _ := c.ReadMessage(1 * time.Millisecond)
+		if data != nil {
+			dataTmp := NewNucleoData()
+			fmt.Println(string(data.Value))
+			errX := json.Unmarshal(data.Value, &dataTmp)
+			if errX != nil {
+				fmt.Println(errX)
+			}
+			cHandle.Hub.Execute(*data.TopicPartition.Topic, dataTmp)
 		}
-		data := NewNucleoData()
-		err = json.Unmarshal(m.Value, &data)
-		if err != nil {
-			fmt.Println(err)
-		}
-		c.Hub.Execute(m.TopicPartition.String(), data)
+		time.Sleep(time.Microsecond*2)
 	}
 }

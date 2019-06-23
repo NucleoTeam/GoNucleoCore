@@ -1,18 +1,15 @@
 package nucleohub
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/segmentio/kafka-go"
-	"github.com/segmentio/kafka-go/snappy"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"time"
 )
 
 type NucleoProducer struct {
 	Brokers []string
-	Writer *kafka.Writer
+	Producer *kafka.Producer
 	Chain string
 	Hub *NucleoHub
 	Queue *NucleoList
@@ -23,29 +20,28 @@ func NewProducer(chain string, brokers []string, hub *NucleoHub) *NucleoProducer
 	producer.Hub = hub
 	producer.Chain = chain
 	producer.Queue = newList()
-	// write
+
+	p, _ := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": brokers[0]})
+	producer.Producer = p
+
 	go producer.WriteThread();
 
 	return producer;
 }
 
 func (p * NucleoProducer) WriteThread(){
-	u, _ := uuid.NewRandom()
-	dialer := &kafka.Dialer{
-		Timeout:  10 * time.Second,
-		ClientID: p.Hub.Name+"-PRODUCER-"+u.String(),
-	}
-	p.Writer = kafka.NewWriter(kafka.WriterConfig{
-		Brokers: p.Brokers,
-		Dialer: dialer,
-		Topic: p.Chain,
-		Balancer: &kafka.LeastBytes{},
-		WriteTimeout: 10 * time.Millisecond,
-		BatchTimeout: 500 * time.Millisecond,
-		ReadTimeout: 500 * time.Millisecond,
-		CompressionCodec: snappy.NewCompressionCodec(),
-		Async: false,
-	})
+	go func() {
+		for e := range p.Producer.Events() {
+			switch ev := e.(type) {
+			case *kafka.Message:
+				if ev.TopicPartition.Error != nil {
+					fmt.Printf("Delivery failed: %v\n", ev.TopicPartition)
+				} else {
+					fmt.Printf("Delivered message to %v\n", ev.TopicPartition)
+				}
+			}
+		}
+	}()
 	for{
 		if p.Queue.Size>0 {
 			item := p.Queue.Pop()
@@ -54,19 +50,15 @@ func (p * NucleoProducer) WriteThread(){
 				if err != nil {
 					fmt.Println(err)
 				}
-				key, err := uuid.NewRandom()
-				if err != nil {
-					fmt.Println(err)
-				}
-				erro := p.Writer.WriteMessages(context.Background(), kafka.Message{
-					Key: []byte(key.String()),
+				fmt.Println(item.Chain)
+				fmt.Println(string(dataJson))
+				p.Producer.Produce(&kafka.Message{
+					TopicPartition: kafka.TopicPartition{Topic: &item.Chain, Partition: kafka.PartitionAny},
 					Value: dataJson,
-				})
-				if erro != nil {
-					fmt.Println(erro)
-				}
+				}, nil)
 			}
+			p.Producer.Flush(1)
 		}
-		time.Sleep(1 * time.Millisecond)
+		time.Sleep(1 * time.Microsecond)
 	}
 }
