@@ -1,12 +1,14 @@
 package main
 
 import (
+	"github.com/google/uuid"
 	nucleohub "nucleoCore/nucleo"
 	"time"
 )
 
 func main() {
-	hub := nucleohub.NewHub("Go-Client","nucleoCore-Go", []string{"192.168.1.112:9092"})
+	nameUnique, _ := uuid.NewRandom()
+	hub := nucleohub.NewHub("Go-Client-"+nameUnique.String(),"nucleoCore-Go", []string{"192.168.1.112:9092"})
 	hub.Register("pop", func(data * nucleohub.NucleoData) *nucleohub.NucleoData{
 		data.Objects["test"] = "wow"
 		return data;
