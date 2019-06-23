@@ -3,7 +3,7 @@ package nucleohub
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 	"time"
 )
 
@@ -30,18 +30,6 @@ func NewProducer(chain string, brokers []string, hub *NucleoHub) *NucleoProducer
 }
 
 func (p * NucleoProducer) WriteThread(){
-	go func() {
-		for e := range p.Producer.Events() {
-			switch ev := e.(type) {
-			case *kafka.Message:
-				if ev.TopicPartition.Error != nil {
-					fmt.Printf("Delivery failed: %v\n", ev.TopicPartition)
-				} else {
-					fmt.Printf("Delivered message to %v\n", ev.TopicPartition)
-				}
-			}
-		}
-	}()
 	for{
 		if p.Queue.Size>0 {
 			item := p.Queue.Pop()
@@ -50,8 +38,6 @@ func (p * NucleoProducer) WriteThread(){
 				if err != nil {
 					fmt.Println(err)
 				}
-				fmt.Println(item.Chain)
-				fmt.Println(string(dataJson))
 				p.Producer.Produce(&kafka.Message{
 					TopicPartition: kafka.TopicPartition{Topic: &item.Chain, Partition: kafka.PartitionAny},
 					Value: dataJson,

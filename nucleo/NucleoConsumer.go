@@ -3,7 +3,7 @@ package nucleohub
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 	"time"
 )
 
@@ -37,7 +37,7 @@ func (cHandle * NucleoConsumer) readThread(){
 		data, _ := c.ReadMessage(1 * time.Millisecond)
 		if data != nil {
 			dataTmp := NewNucleoData()
-			fmt.Println(string(data.Value))
+			//fmt.Println(string(data.Value))
 			errX := json.Unmarshal(data.Value, &dataTmp)
 			if errX != nil {
 				fmt.Println(errX)
