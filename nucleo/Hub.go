@@ -11,6 +11,7 @@ type NucleoHub struct {
 	Responders  map[string] func(data *NucleoData) *NucleoData
 	Response map[uuid.UUID] func(data *NucleoData)
 	group string
+	Pusher *ElasticSearchPusher
 	Queue *NucleoList
 	producer map[string]*NucleoProducer
 	origin uuid.UUID
@@ -22,6 +23,7 @@ func NewHub(name string, group string, brokers []string) *NucleoHub{
 	hub := new(NucleoHub)
 	hub.group = group
 	hub.Name = name
+	hub.Pusher = NewESPusher([]string{"http://192.168.1.112:9200"})
 	hub.Queue = newList()
 	hub.origin, _ = uuid.NewRandom()
 	hub.producer = map[string]*NucleoProducer{}
@@ -85,6 +87,10 @@ func (hub *NucleoHub) Execute(chain string, data *NucleoData){
 	data.Steps = append(data.Steps, step)
  	hub.Responders[chain](data)
 	step.EndStep()
+
+	// Push to elasticsearch using the step count as the version
+	hub.Pusher.Push(*data)
+
 	if data.ChainBreak!=nil {
 		if data.ChainBreak.BreakChain {
 			hub.Queue.Add(NewItem("nucleo.client."+data.Origin, data))

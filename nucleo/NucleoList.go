@@ -11,15 +11,15 @@ func newList() * NucleoList{
 	return  query
 }
 
-func (list *NucleoList ) Add(query *NucleoItem){
+func (list *NucleoList ) Add(item *NucleoItem){
 	if list.Head==nil {
-		list.Head = query
-		list.Tail = query
+		list.Head = item
+		list.Tail = item
 		list.Size++
 		return
 	}
-	list.Tail.Next = query;
-	list.Tail = query
+	list.Tail.Next = item;
+	list.Tail = item
 	list.Size++
 }
 func (list *NucleoList) Pop() *NucleoItem{
