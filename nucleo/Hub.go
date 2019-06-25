@@ -19,18 +19,18 @@ type NucleoHub struct {
 	consumers []*NucleoConsumer
 }
 
-func NewHub(name string, group string, brokers []string) *NucleoHub{
+func NewHub(name string, group string, brokers []string, elasticServers []string) *NucleoHub{
 	hub := new(NucleoHub)
 	hub.group = group
 	hub.Name = name
-	hub.Pusher = NewESPusher([]string{"http://192.168.1.112:9200"})
+	hub.Pusher = NewESPusher(elasticServers)
 	hub.Queue = newList()
 	hub.origin, _ = uuid.NewRandom()
 	hub.producer = map[string]*NucleoProducer{}
 	hub.Responders = map[string]func(data *NucleoData) *NucleoData{}
 	hub.Response = map[uuid.UUID]func(data *NucleoData) {}
 	hub.brokers = brokers
-	hub.producer["broadcast"] = NewProducer("broadcast", brokers, hub)
+	//hub.producer["broadcast"] = NewProducer("broadcast", brokers, hub)
 	hub.consumers = append(hub.consumers, NewConsumer("nucleo.client."+hub.Name, hub.group, hub.brokers, hub))
 	go hub.PollQueue()
 

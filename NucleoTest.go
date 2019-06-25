@@ -8,7 +8,12 @@ import (
 
 func main() {
 	nameUnique, _ := uuid.NewRandom()
-	hub := nucleohub.NewHub("Go-Client-"+nameUnique.String(),"nucleoCore-Go", []string{"192.168.1.112:9092"})
+	hub := nucleohub.NewHub(
+		"Go-Client-"+nameUnique.String(),
+		"nucleoCore-Go",
+		[]string{"192.168.1.112:9092"},
+		[]string{"192.168.1.112:9200"},
+	)
 	hub.Register("pop", func(data * nucleohub.NucleoData) *nucleohub.NucleoData{
 		data.Objects["test"] = "wow"
 		return data;
