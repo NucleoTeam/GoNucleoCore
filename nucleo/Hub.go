@@ -153,7 +153,6 @@ func (hub *NucleoHub) Execute(chain string, data *NucleoData, reqs []string){
 	if response == 0 {
 		if hub.Responders[chain]!=nil {
 			hub.consumers[chain].Exec(data)
-			hub.Execute(chain, data, []string{})
 			return
 		}
 		hub.Queue.Add(NewItem(chain, data))
