@@ -10,15 +10,13 @@ import (
 type NucleoProducer struct {
 	Brokers []string
 	Producer *kafka.Producer
-	Chain string
 	Hub *NucleoHub
 	Queue *NucleoList
 }
-func NewProducer(chain string, brokers []string, hub *NucleoHub) *NucleoProducer {
+func NewProducer(brokers []string, hub *NucleoHub) *NucleoProducer {
 	producer := new(NucleoProducer)
 	producer.Brokers = brokers
 	producer.Hub = hub
-	producer.Chain = chain
 	producer.Queue = newList()
 
 	p, _ := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": brokers[0]})
@@ -45,6 +43,6 @@ func (p * NucleoProducer) WriteThread(){
 			}
 			p.Producer.Flush(1)
 		}
-		time.Sleep(1 * time.Microsecond)
+		time.Sleep(time.Millisecond)
 	}
 }

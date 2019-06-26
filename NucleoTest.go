@@ -25,12 +25,14 @@ func main() {
 		return data;
 	})
 
+	hub.Start()
+
 	for{
 		fmt.Println("Created new request")
 		hub.Add("pop.corn", nucleohub.NewNucleoData(), func(data *nucleohub.NucleoData) {
 			d, _ := json.Marshal(data)
 			fmt.Println(string(d))
 		})
-		time.Sleep(10 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 }

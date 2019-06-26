@@ -2,23 +2,20 @@ package nucleohub
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/google/uuid"
 	"strings"
-	"time"
 )
 
 type NucleoHub struct {
 	Name string
-	Responders  map[string] func(data *NucleoData) *NucleoData
+	Responders  map[string]*NucleoResponder
 	Response map[uuid.UUID] func(data *NucleoData)
 	group string
 	Pusher *ElasticSearchPusher
-	Queue *NucleoList
-	producer map[string]*NucleoProducer
+	producer *NucleoProducer
 	origin uuid.UUID
 	brokers []string
-	consumers map[string]*NucleoConsumer
+	consumers *NucleoConsumer
 }
 
 func NewHub(name string, group string, brokers []string, elasticServers []string) *NucleoHub{
@@ -26,18 +23,18 @@ func NewHub(name string, group string, brokers []string, elasticServers []string
 	hub.group = group
 	hub.Name = name
 	hub.Pusher = NewESPusher(elasticServers)
-	hub.Queue = newList()
 	hub.origin, _ = uuid.NewRandom()
-	hub.producer = map[string]*NucleoProducer{}
-	hub.Responders = map[string]func(data *NucleoData) *NucleoData{}
+	hub.producer = NewProducer(brokers, hub)
+	hub.Responders = map[string] * NucleoResponder{}
 	hub.Response = map[uuid.UUID]func(data *NucleoData) {}
 	hub.brokers = brokers
-	hub.consumers = map[string]*NucleoConsumer{}
-	//hub.producer["broadcast"] = NewProducer("broadcast", brokers, hub)
-	hub.consumers["nucleo.client."+hub.Name] = NewConsumer("nucleo.client."+hub.Name, []string{}, hub.group, hub.brokers, hub)
-	go hub.PollQueue()
-
+	hub.consumers = NewConsumer(hub.group, hub.brokers, hub)
+	hub.consumers.AddTopic("nucleo.client."+hub.Name)
 	return hub
+}
+
+func (hub * NucleoHub) Start(){
+	hub.consumers.Start()
 }
 
 func (hub * NucleoHub) Add(chains string, data *NucleoData, function func(data *NucleoData)){
@@ -52,7 +49,7 @@ func (hub * NucleoHub) Add(chains string, data *NucleoData, function func(data *
 	data.ChainList = chainListArr
 	data.GetCurrentChain()
 	hub.Response[data.Root] = function
-	hub.Queue.Add(NewItem(data.GetCurrentChain(), data))
+	hub.producer.Queue.Add(NewItem(data.GetCurrentChain(), data))
 }
 
 func (hub *NucleoHub) Register(chain string, function func(data *NucleoData) *NucleoData ) {
@@ -72,21 +69,9 @@ func (hub *NucleoHub) Register(chain string, function func(data *NucleoData) *Nu
 		//fmt.Println(chainReqs)
 		//fmt.Println(chain)
 	}
-	hub.consumers[chain] = NewConsumer(chain, chainReqs, hub.group, hub.brokers, hub)
-	hub.Responders[chain] = function
-}
 
-func (hub *NucleoHub) PollQueue(){
-	for {
-		item := hub.Queue.Pop()
-		if item != nil {
-			if hub.producer[item.Chain] == nil {
-				hub.producer[item.Chain] = NewProducer(item.Chain, hub.brokers, hub)
-			}
-			hub.producer[item.Chain].Queue.Add(item)
-		}
-		time.Sleep(1 * time.Microsecond)
-	}
+	hub.consumers.AddTopic(chain)
+	hub.Responders[chain] = NewResponder(function, chainReqs)
 }
 
 func containsAll(data *NucleoData, search []string) []string {
@@ -105,9 +90,8 @@ func containsAll(data *NucleoData, search []string) []string {
 	return notFound
 }
 
-func (hub *NucleoHub) Execute(chain string, data *NucleoData, reqs []string){
+func (hub *NucleoHub) Execute(chain string, data *NucleoData){
 	if chain == "nucleo.client."+hub.Name {
-		fmt.Println(chain + "=nucleo.client."+hub.Name)
 		if hub.Response[data.Root] != nil {
 			data.Execution.EndStep()
 			hub.Response[data.Root](data)
@@ -116,27 +100,26 @@ func (hub *NucleoHub) Execute(chain string, data *NucleoData, reqs []string){
 			return
 		}
 		return
-	} else {
-		fmt.Println(chain + "=nucleo.client."+hub.Name)
 	}
-	if len(reqs)>0 {
-		missingRequirements := containsAll(data, reqs)
+	if hub.Responders[chain] == nil {
+		return
+	}
+	responder := hub.Responders[chain]
+	if len(responder.Requirements)>0 {
+		missingRequirements := containsAll(data, responder.Requirements)
 		//fmt.Println(missingRequirements)
 		if len(missingRequirements) > 0 {
 			data.ChainBreak.BreakChain = true
 			reqStr, _ := json.Marshal(missingRequirements)
 			data.ChainBreak.BreakReasons = append(data.ChainBreak.BreakReasons, "Missing required chains "+ string(reqStr))
 			hub.Pusher.Push(data)
-			hub.Queue.Add(NewItem("nucleo.client."+data.Origin, data))
+			hub.producer.Queue.Add(NewItem("nucleo.client."+data.Origin, data))
 			return
 		}
 	}
-	if hub.Responders[chain] == nil {
-		return
-	}
 	step := NewStep(chain);
 	data.Steps = append(data.Steps, step)
- 	hub.Responders[chain](data)
+ 	hub.Responders[chain].Function(data)
 	step.EndStep()
 
 	// Push to elasticsearch using the step count as the version
@@ -144,21 +127,21 @@ func (hub *NucleoHub) Execute(chain string, data *NucleoData, reqs []string){
 
 	if data.ChainBreak!=nil {
 		if data.ChainBreak.BreakChain {
-			hub.Queue.Add(NewItem("nucleo.client."+data.Origin, data))
+			hub.producer.Queue.Add(NewItem("nucleo.client."+data.Origin, data))
 			return
 		}
 	}
 	response := data.Increment()
 	chain = data.GetCurrentChain()
 	if response == 0 {
-		if hub.Responders[chain]!=nil {
-			hub.consumers[chain].Exec(data)
+		if responder!=nil {
+			hub.Execute(chain, data)
 			return
 		}
-		hub.Queue.Add(NewItem(chain, data))
+		hub.producer.Queue.Add(NewItem(chain, data))
 	} else if response == 1 {
-		hub.Queue.Add(NewItem(chain, data))
+		hub.producer.Queue.Add(NewItem(chain, data))
 	} else if response == -1 {
-		hub.Queue.Add(NewItem("nucleo.client."+data.Origin, data))
+		hub.producer.Queue.Add(NewItem("nucleo.client."+data.Origin, data))
 	}
 }

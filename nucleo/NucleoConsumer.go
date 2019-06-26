@@ -9,26 +9,27 @@ import (
 
 type NucleoConsumer struct {
 	Brokers []string
-	Chain string
 	GroupID string
 	Hub *NucleoHub
-	Requirements []string
+	Topics []string
 }
 
-func NewConsumer(chain string, requirements []string, group string, brokers []string, hub *NucleoHub) *NucleoConsumer {
+func NewConsumer(group string, brokers []string, hub *NucleoHub) *NucleoConsumer {
 	consumer := new(NucleoConsumer);
 	consumer.Brokers = brokers
 	consumer.GroupID = group
 	consumer.Hub = hub
-	consumer.Requirements = requirements
-	consumer.Chain = chain
-	go consumer.readThread()
-
 	return consumer;
 }
-func (cHandle * NucleoConsumer) Exec(dataTmp * NucleoData){
-	cHandle.Hub.Execute(cHandle.Chain, dataTmp, cHandle.Requirements)
+
+func (cHandle * NucleoConsumer) AddTopic(topic string){
+	cHandle.Topics = append(cHandle.Topics, topic)
 }
+
+func (cHandle * NucleoConsumer) Start(){
+	go cHandle.readThread()
+}
+
 func (cHandle * NucleoConsumer) readThread(){
 	run := true
 	c, _ := kafka.NewConsumer(&kafka.ConfigMap{
@@ -37,7 +38,7 @@ func (cHandle * NucleoConsumer) readThread(){
 		"auto.offset.reset": "latest",
 		"session.timeout.ms":    6000,
 	})
-	c.SubscribeTopics([]string{cHandle.Chain}, nil)
+	c.SubscribeTopics(cHandle.Topics, nil)
 	for run == true {
 		data, _ := c.ReadMessage(1 * time.Millisecond)
 		if data != nil {
@@ -47,8 +48,8 @@ func (cHandle * NucleoConsumer) readThread(){
 			if errX != nil {
 				fmt.Println(errX)
 			}
-			cHandle.Exec(dataTmp)
+			cHandle.Hub.Execute(*data.TopicPartition.Topic, dataTmp)
 		}
-		time.Sleep(time.Microsecond*2)
+		time.Sleep(time.Millisecond)
 	}
 }
