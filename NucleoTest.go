@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/google/uuid"
 	nucleohub "nucleoCore/nucleo"
 	"time"
@@ -12,25 +14,23 @@ func main() {
 		"Go-Client-"+nameUnique.String(),
 		"nucleoCore-Go",
 		[]string{"192.168.1.112:9092"},
-		[]string{"192.168.1.112:9200"},
+		[]string{"http://192.168.1.112:9200"},
 	)
 	hub.Register("pop", func(data * nucleohub.NucleoData) *nucleohub.NucleoData{
 		data.Objects["test"] = "wow"
 		return data;
 	})
-	hub.Register("pop.corn", func(data * nucleohub.NucleoData) *nucleohub.NucleoData{
+	hub.Register("taco > pop.corn", func(data * nucleohub.NucleoData) *nucleohub.NucleoData{
 		data.Objects["Corn"] = "GOGOGO"
 		return data;
 	})
-	for {
-		time.Sleep(time.Millisecond)
-	}
-	/*for{
+
+	for{
 		fmt.Println("Created new request")
 		hub.Add("pop.corn", nucleohub.NewNucleoData(), func(data *nucleohub.NucleoData) {
 			d, _ := json.Marshal(data)
 			fmt.Println(string(d))
 		})
 		time.Sleep(10 * time.Second)
-	}*/
+	}
 }

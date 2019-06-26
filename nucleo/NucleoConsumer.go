@@ -26,6 +26,9 @@ func NewConsumer(chain string, requirements []string, group string, brokers []st
 
 	return consumer;
 }
+func (cHandle * NucleoConsumer) Exec(dataTmp * NucleoData){
+	cHandle.Hub.Execute(cHandle.Chain, dataTmp, cHandle.Requirements)
+}
 func (cHandle * NucleoConsumer) readThread(){
 	run := true
 	c, _ := kafka.NewConsumer(&kafka.ConfigMap{
@@ -44,7 +47,7 @@ func (cHandle * NucleoConsumer) readThread(){
 			if errX != nil {
 				fmt.Println(errX)
 			}
-			cHandle.Hub.Execute(*data.TopicPartition.Topic, dataTmp, cHandle.Requirements)
+			cHandle.Exec(dataTmp)
 		}
 		time.Sleep(time.Microsecond*2)
 	}

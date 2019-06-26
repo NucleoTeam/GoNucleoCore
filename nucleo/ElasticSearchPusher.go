@@ -16,9 +16,9 @@ type ElasticSearchPusher struct {
 	List NucleoList
 }
 
-func (es * ElasticSearchPusher) Push(data NucleoData){
+func (es * ElasticSearchPusher) Push(data * NucleoData){
 	data.Version++
-	es.List.Add( NewItem("", data))
+	es.List.Add( NewItem("", *data))
 }
 
 func NewESPusher(hosts []string) *ElasticSearchPusher{
