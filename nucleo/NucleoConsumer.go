@@ -12,13 +12,15 @@ type NucleoConsumer struct {
 	Chain string
 	GroupID string
 	Hub *NucleoHub
+	Requirements []string
 }
 
-func NewConsumer(chain string, group string, brokers []string, hub *NucleoHub) *NucleoConsumer {
+func NewConsumer(chain string, requirements []string, group string, brokers []string, hub *NucleoHub) *NucleoConsumer {
 	consumer := new(NucleoConsumer);
 	consumer.Brokers = brokers
 	consumer.GroupID = group
 	consumer.Hub = hub
+	consumer.Requirements = requirements
 	consumer.Chain = chain
 	go consumer.readThread()
 
@@ -42,7 +44,7 @@ func (cHandle * NucleoConsumer) readThread(){
 			if errX != nil {
 				fmt.Println(errX)
 			}
-			cHandle.Hub.Execute(*data.TopicPartition.Topic, dataTmp)
+			cHandle.Hub.Execute(*data.TopicPartition.Topic, dataTmp, cHandle.Requirements)
 		}
 		time.Sleep(time.Microsecond*2)
 	}

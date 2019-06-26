@@ -9,6 +9,7 @@ type NucleoData struct {
 	ChainList [][]string `json:"chainList"`
 	Origin string `json:"origin"`
 	Link int `json:"link"`
+	Version int `json:"version"`
 	Execution *NucleoStep `json:"execution"`
 	OnChain int `json:"onChain"`
 	Objects map[string]interface{} `json:"objects"`
@@ -20,6 +21,7 @@ func NewNucleoData() *NucleoData {
 	data.ChainBreak = NewChainStatus()
 	o, _ := uuid.NewRandom()
 	data.Root = o
+	data.Version = 0
 	data.Objects = map[string]interface{}{}
 	data.Execution = step
 	return data

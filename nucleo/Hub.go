@@ -1,6 +1,7 @@
 package nucleohub
 
 import (
+	"encoding/json"
 	"github.com/google/uuid"
 	"strings"
 	"time"
@@ -53,7 +54,19 @@ func (hub * NucleoHub) Add(chains string, data *NucleoData, function func(data *
 }
 
 func (hub *NucleoHub) Register(chain string, function func(data *NucleoData) *NucleoData ) {
-	hub.consumers = append(hub.consumers, NewConsumer(chain, hub.group, hub.brokers, hub))
+	if chain == "" {
+		return
+	}
+	chain = strings.Replace(chain, " ", "", -1)
+	chainReqs := strings.Split(chain, ">")
+	if len(chainReqs) == 1 {
+		chain = chainReqs[0]
+		chainReqs = []string{}
+	} else {
+		chain = chainReqs[len(chainReqs)-1]
+		chainReqs = chainReqs[0:len(chainReqs)-1]
+	}
+	hub.consumers = append(hub.consumers, NewConsumer(chain, chainReqs, hub.group, hub.brokers, hub))
 	hub.Responders[chain] = function
 }
 
@@ -70,15 +83,43 @@ func (hub *NucleoHub) PollQueue(){
 	}
 }
 
-func (hub *NucleoHub) Execute(chain string, data *NucleoData){
+func containsAll(data *NucleoData, search []string) []string {
+	notFound := []string{}
+	for _, req := range search {
+		found := false
+		for _, step := range data.Steps {
+			if step.Step == req {
+				found = true
+			}
+		}
+		if found == false {
+			notFound = append(notFound, req)
+		}
+	}
+	return notFound
+}
+
+func (hub *NucleoHub) Execute(chain string, data *NucleoData, reqs []string){
 	if chain == "nucleo.client."+hub.Name {
 		if hub.Response[data.Root] != nil {
 			data.Execution.EndStep()
 			hub.Response[data.Root](data)
+			hub.Pusher.Push(*data)
 			delete(hub.Response, data.Root)
 			return
 		}
 		return
+	}
+	if len(reqs)>0 {
+		missingRequirements := containsAll(data, reqs)
+		if len(missingRequirements) > 0 {
+			data.ChainBreak.BreakChain = true
+			reqStr, _ := json.Marshal(missingRequirements)
+			data.ChainBreak.BreakReasons = append(data.ChainBreak.BreakReasons, "Missing required chains "+ string(reqStr))
+			hub.Pusher.Push(*data)
+			hub.Queue.Add(NewItem("nucleo.client."+data.Origin, data))
+			return
+		}
 	}
 	if hub.Responders[chain] == nil {
 		return
@@ -101,7 +142,7 @@ func (hub *NucleoHub) Execute(chain string, data *NucleoData){
 	chain = data.GetCurrentChain()
 	if response == 0 {
 		if hub.Responders[chain]!=nil {
-			hub.Execute(chain, data)
+			hub.Execute(chain, data, []string{})
 			return
 		}
 		hub.Queue.Add(NewItem(chain, data))

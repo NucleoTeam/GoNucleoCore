@@ -17,6 +17,7 @@ type ElasticSearchPusher struct {
 }
 
 func (es * ElasticSearchPusher) Push(data NucleoData){
+	data.Version++
 	es.List.Add( NewItem("", data))
 }
 
@@ -47,7 +48,7 @@ func (es * ElasticSearchPusher) process(){
 					"nucleo",
 					strings.NewReader(string(dataJson)),
 					eClient.Index.WithRefresh("true"),
-					eClient.Index.WithVersion(len(item.Steps)),
+					eClient.Index.WithVersion(item.Version),
 					eClient.Index.WithVersionType("external"),
 					eClient.Index.WithPretty(),
 					eClient.Index.WithDocumentID(item.Origin+"-"+item.Root.String()),
