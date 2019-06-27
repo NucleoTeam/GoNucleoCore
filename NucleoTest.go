@@ -1,10 +1,10 @@
 package main
 
 import (
+	nucleohub "GoNucleoCore/nucleo"
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
-	nucleohub "nucleoCore/nucleo"
 	"time"
 )
 
