@@ -3,9 +3,7 @@ package nucleohub
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/elastic/go-elasticsearch/v8"
-	"github.com/elastic/go-elasticsearch/v8/estransport"
-	"os"
+	"github.com/elastic/go-elasticsearch"
 	"strings"
 	"time"
 )
@@ -32,7 +30,6 @@ func NewESPusher(hosts []string) *ElasticSearchPusher{
 func (es * ElasticSearchPusher) process(){
 	cfg := elasticsearch.Config{
 		Addresses: es.Hosts,
-		Logger: &estransport.ColorLogger{Output: os.Stdout},
 	}
 	eClient, err := elasticsearch.NewClient(cfg)
 	if err !=nil {
